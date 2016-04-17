@@ -1,0 +1,242 @@
+---
+title: 'Reproducible Research - CP #1'
+author: "Marc-Antoine E."
+date: "15 avril 2016"
+output: 
+  html_document:
+  fig_caption: yes
+---
+
+R markdown document on first course project
+
+Following analysis are based on data that can be downloaded at the following link:
+https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip
+
+# Loading and preprocessing the data
+
+Install requested packages if not found
+
+```r
+list.of.packages <- c("ggplot2", "dplyr", "lattice")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+library(ggplot2)
+library(dplyr)
+library(lattice)
+```
+
+Unzip, read the data and store it in a new variable
+Overview of the new variable
+
+```r
+unzip("repdata-data-activity.zip")
+activity <- read.csv(file = "activity.csv")
+head(activity)
+```
+
+```
+##   steps       date interval
+## 1    NA 2012-10-01        0
+## 2    NA 2012-10-01        5
+## 3    NA 2012-10-01       10
+## 4    NA 2012-10-01       15
+## 5    NA 2012-10-01       20
+## 6    NA 2012-10-01       25
+```
+
+# What is mean total number of steps taken per day?
+
+Group by date
+
+```r
+activity_groupbyday <- data.frame(activity$date,activity$steps)
+activity_groupbyday <- aggregate(activity_groupbyday$activity.steps, by=list(Date = activity_groupbyday$activity.date),FUN = sum )
+names(activity_groupbyday) <- c("Date","Steps")
+activity_groupbyday$ID <- as.numeric(rownames(activity_groupbyday))
+activity_groupbyday <- activity_groupbyday[!is.na(activity_groupbyday$Steps),]
+```
+
+Print activity histogram
+
+```r
+ggplot(activity_groupbyday) + geom_histogram(aes(x=ID, weight = Steps), fill= "red", binwidth = 0.5) + ggtitle("Number of steps per day") + ylab("Steps [#]") + xlab("Day")
+```
+
+![plot of chunk unnamed-chunk-4](figure/unnamed-chunk-4-1.png)
+
+Calculate mean and median
+
+```r
+stat_activity <- c(mean(activity_groupbyday$Steps),median(activity_groupbyday$Steps))
+names(stat_activity) <- c("Mean","Median")
+stat_activity
+```
+
+```
+##     Mean   Median 
+## 10766.19 10765.00
+```
+
+# What is the average daily activity pattern?
+
+Average daily activity pattern
+
+```r
+daily_pattern <- tapply(activity$steps,activity$interval,FUN = mean, na.rm = TRUE)
+head(daily_pattern)
+```
+
+```
+##         0         5        10        15        20        25 
+## 1.7169811 0.3396226 0.1320755 0.1509434 0.0754717 2.0943396
+```
+Print daily activity pattern
+
+```r
+plot(row.names(daily_pattern), daily_pattern, type = "l", xlab = "Time interval", ylab = "Av. number of steps", main = "Daily activity pattern", col = "blue")
+```
+
+![plot of chunk unnamed-chunk-7](figure/unnamed-chunk-7-1.png)
+5-minute interval, on average across all the days in the dataset, containing the maximum number of steps
+
+```r
+interval_max <- which.max(daily_pattern)
+names(interval_max)
+```
+
+```
+## [1] "835"
+```
+
+# Imputing missing values
+
+Total number of missing values in the dataset (i.e. the total number of rows with NAs)
+
+```r
+number_NA <- sum(is.na(activity))
+number_NA
+```
+
+```
+## [1] 2304
+```
+
+Filling in all of the missing values in the dataset : mean for that 5-minute interval
+
+```r
+steps_new <- NULL
+for (i in 1:nrow(activity)){
+  if (is.na(activity[i,]$steps)){
+    steps_new[i] <- daily_pattern[row.names(daily_pattern) == activity[i,]$interval]
+  }
+  else {
+    steps_new[i] <- activity[i,]$steps
+    }
+}
+head(steps_new)
+```
+
+```
+## [1] 1.7169811 0.3396226 0.1320755 0.1509434 0.0754717 2.0943396
+```
+
+Create a new dataset that is equal to the original dataset but with the missing data filled in
+
+```r
+activity_new <- activity
+activity_new$steps <- steps_new
+head(activity_new)
+```
+
+```
+##       steps       date interval
+## 1 1.7169811 2012-10-01        0
+## 2 0.3396226 2012-10-01        5
+## 3 0.1320755 2012-10-01       10
+## 4 0.1509434 2012-10-01       15
+## 5 0.0754717 2012-10-01       20
+## 6 2.0943396 2012-10-01       25
+```
+Group by date
+
+```r
+activity_groupbyday2 <- data.frame(activity_new$date,activity_new$steps)
+head(activity_groupbyday2)
+```
+
+```
+##   activity_new.date activity_new.steps
+## 1        2012-10-01          1.7169811
+## 2        2012-10-01          0.3396226
+## 3        2012-10-01          0.1320755
+## 4        2012-10-01          0.1509434
+## 5        2012-10-01          0.0754717
+## 6        2012-10-01          2.0943396
+```
+
+```r
+activity_groupbyday2 <- aggregate(activity_groupbyday2$activity_new.steps, by=list(Date = activity_groupbyday2$activity_new.date),FUN = sum )
+names(activity_groupbyday2) <- c("Date","Steps")
+activity_groupbyday2$ID <- as.numeric(rownames(activity_groupbyday2))
+```
+Print activity histogram
+
+```r
+ggplot(activity_groupbyday2) + geom_histogram(aes(x=ID, weight = Steps), fill= "red", binwidth = 0.5) + ggtitle("Number of steps per day #2") + ylab("Steps [#]") + xlab("Day")
+```
+
+![plot of chunk unnamed-chunk-13](figure/unnamed-chunk-13-1.png)
+
+Calculate mean and median
+
+```r
+stat_activity2 <- c(mean(activity_groupbyday2$Steps),median(activity_groupbyday2$Steps))
+names(stat_activity2) <- c("Mean","Median")
+stat_activity2
+```
+
+```
+##     Mean   Median 
+## 10766.19 10766.19
+```
+
+# Are there differences in activity patterns between weekdays and weekends?
+
+Creating a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day
+
+```r
+for (i in 1:nrow(activity_new)){
+  if ((weekdays(as.Date(activity_new$date[i])) == "dimanche"||weekdays(as.Date(activity_new$date[i])) == "samedi")){
+    activity_new$week[i] <- "weekend"
+  }
+  else {
+    activity_new$week[i] <- "weekday"
+  }
+}
+head(activity_new)
+```
+
+```
+##       steps       date interval    week
+## 1 1.7169811 2012-10-01        0 weekday
+## 2 0.3396226 2012-10-01        5 weekday
+## 3 0.1320755 2012-10-01       10 weekday
+## 4 0.1509434 2012-10-01       15 weekday
+## 5 0.0754717 2012-10-01       20 weekday
+## 6 2.0943396 2012-10-01       25 weekday
+```
+
+Group by weekday and interval
+
+```r
+extract_activity <- aggregate(activity_new$steps, by =list(activity_new$interval, activity_new$week), data = activity_new,FUN = mean)
+names(extract_activity) <- c("Interval","Week", "Steps")
+```
+Make a panel plot
+
+```r
+xyplot(Steps ~ Interval | Week, extract_activity, type = "l", layout = c(1,2), xlab = "Interval", ylab = "Steps")
+```
+
+![plot of chunk unnamed-chunk-17](figure/unnamed-chunk-17-1.png)
+
